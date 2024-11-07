@@ -1,3 +1,8 @@
+#  если не установлено то -Ю pip install krpc
+# 
+
+
+
 import krpc
 import time
 
