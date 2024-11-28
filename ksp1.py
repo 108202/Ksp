@@ -6,8 +6,7 @@ import math
 conn = krpc.connect(name="Sputnik-1 Launch")
 vessel = conn.space_center.active_vessel
 
-# Основные параметры для запуска
-target_altitude = 500000  # Наша цель — высота орбиты в метрах (500 км над Землей)
+target_altitude = 500000  
 g0 = 9.80665  # Ускорение свободного падения на Земле, м/с^2
 p0 = 101325  # Давление на уровне моря, Па
 H = 8500  # Характерная высота атмосферы, м
