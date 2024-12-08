@@ -10,40 +10,30 @@ vessel = conn.space_center.active_vessel
 target_periapsis = 215000  # Перигей в метрах
 target_apoapsis = 939000  # Апогей в метрах
 target_inclination = 65.1  # Наклонение орбиты в градусах
-g0 = 9.80665  # Ускорение свободного падения на Земле, м/с^2
-p0 = 101325  # Давление на уровне моря, Па
-H = 8500  # Характерная высота атмосферы, м
 
 # Настраиваем автопилот
 vessel.auto_pilot.engage()
+vessel.auto_pilot.target_roll = 0  # Удерживаем стабилизацию по крену
+vessel.auto_pilot.stopping_time = (2, 2, 2)  # Сглаживание маневров
 vessel.control.throttle = 1.0  # Максимальная тяга
-vessel.auto_pilot.target_pitch_and_heading(90, 90)  # Стартуем вертикально
 
-# Формула для расчета атмосферного давления
-def pressure_at_height(height):
-    if height < 0:
-        return p0
-    return p0 * math.exp(-height / H)
-
-# Формула для расчета тяги с учетом давления
-def current_thrust(stage_thrust, height):
-    pressure = pressure_at_height(height)
-    vacuum_thrust = stage_thrust
-    sea_level_thrust = stage_thrust * 0.7  # Примерное значение тяги на уровне моря
-    return sea_level_thrust + (vacuum_thrust - sea_level_thrust) * (1 - pressure / p0)
-
-# Рассчитываем угол наклона ракеты
+# Формула для расчета угла наклона ракеты
 def calculate_pitch(current_altitude, target_altitude):
-    pitch = 90 - (current_altitude / target_altitude) * 90
+    pitch = 90 - (current_altitude / target_altitude) * 70  # Уменьшаем угол с ростом высоты
     return max(0, min(pitch, 90))
 
 # Первый этап — работа первой ступени
 def stage_1_launch():
     print("Старт!")
+    vessel.auto_pilot.target_pitch_and_heading(90, 90)  # Вертикальный старт
+    time.sleep(1)  # Ждем стабилизации ракеты
+    vessel.control.activate_next_stage()  # Запускаем двигатель
+
     while True:
-        height = vessel.flight().mean_altitude
+        flight_info = vessel.flight()
+        height = flight_info.mean_altitude
         pitch = calculate_pitch(height, target_apoapsis)  # Меняем угол наклона
-        vessel.auto_pilot.target_pitch_and_heading(pitch, 90)
+        vessel.auto_pilot.target_pitch_and_heading(pitch, 90)  # Контроль тангажа
         
         # Проверяем, когда нужно отделить первую ступень
         if vessel.resources.amount("LiquidFuel") <= 0.1:  # Топливо первой ступени израсходовано
@@ -55,17 +45,16 @@ def stage_1_launch():
 # Второй этап — выход на орбиту
 def stage_2_launch():
     print("Работа второй ступени")
+    vessel.control.throttle = 1.0  # Устанавливаем полную тягу
+
     while True:
-        height = vessel.flight().mean_altitude
-        pitch = calculate_pitch(height, target_apoapsis)
+        flight_info = vessel.flight()
+        height = flight_info.mean_altitude
+        pitch = calculate_pitch(height, target_apoapsis)  # Меняем угол наклона
         vessel.auto_pilot.target_pitch_and_heading(pitch, 90)
-        
-        # Проверяем параметры орбиты
+
         apoapsis = vessel.orbit.apoapsis_altitude
-        periapsis = vessel.orbit.periapsis_altitude
-        
-        # Когда апогей достигнут, отключаем двигатели
-        if apoapsis >= target_apoapsis:
+        if apoapsis >= target_apoapsis:  # Достигаем апогей
             vessel.control.throttle = 0
             print("Апогей достигнут. Корректируем перигей.")
             break
@@ -84,7 +73,10 @@ def stage_2_launch():
 # Установка целевого наклонения
 def set_inclination():
     print("Коррекция наклонения")
-    vessel.auto_pilot.target_pitch_and_heading(0, target_inclination)  # Устанавливаем наклонение
+    vessel.auto_pilot.disengage()  # Отключаем автопилот для маневра
+    time.sleep(5)
+    vessel.auto_pilot.engage()
+    vessel.auto_pilot.target_pitch_and_heading(0, target_inclination)
     time.sleep(5)
 
 # Запуск
