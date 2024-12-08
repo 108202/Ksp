@@ -11,16 +11,17 @@ target_periapsis = 215000  # Перигей в метрах
 target_apoapsis = 939000  # Апогей в метрах
 target_inclination = 65.1  # Наклонение орбиты в градусах
 
-# Настраиваем автопилот
+# Настроим автопилот
 vessel.auto_pilot.engage()
 vessel.auto_pilot.target_roll = 0  # Удерживаем стабилизацию по крену
 vessel.auto_pilot.stopping_time = (2, 2, 2)  # Сглаживание маневров
 vessel.control.throttle = 1.0  # Максимальная тяга
 
 # Формула для расчета угла наклона ракеты
-def calculate_pitch(current_altitude, target_altitude):
-    pitch = 90 - (current_altitude / target_altitude) * 70  # Уменьшаем угол с ростом высоты
-    return max(0, min(pitch, 90))
+def calculate_pitch(current_altitude, target_apoapsis):
+    # Рассчитываем угол наклона ракеты для более плавного маневра
+    pitch = 90 - (current_altitude / target_apoapsis) * 60  # Снижение угла с увеличением высоты
+    return max(0, min(pitch, 45))  # Ограничиваем угол наклона для стабильности
 
 # Первый этап — работа первой ступени
 def stage_1_launch():
@@ -34,7 +35,7 @@ def stage_1_launch():
         height = flight_info.mean_altitude
         pitch = calculate_pitch(height, target_apoapsis)  # Меняем угол наклона
         vessel.auto_pilot.target_pitch_and_heading(pitch, 90)  # Контроль тангажа
-        
+
         # Проверяем, когда нужно отделить первую ступень
         if vessel.resources.amount("LiquidFuel") <= 0.1:  # Топливо первой ступени израсходовано
             vessel.control.activate_next_stage()
@@ -79,8 +80,16 @@ def set_inclination():
     vessel.auto_pilot.target_pitch_and_heading(0, target_inclination)
     time.sleep(5)
 
+# Управление стабилизацией (особенно по крену)
+def stabilize_roll():
+    vessel.auto_pilot.target_roll = 0  # Удерживаем стабилизацию по крену (вдоль оси X)
+    vessel.auto_pilot.target_pitch_and_heading(90, 90)  # Продолжаем движение по вертикали
+    time.sleep(1)
+
 # Запуск
+stabilize_roll()  # Стабилизируем крен
 stage_1_launch()  # Первая ступень
 stage_2_launch()  # Вторая ступень
 set_inclination()  # Установка наклонения
 print("Спутник-1 на орбите!")
+
