@@ -45,16 +45,18 @@ def log_telemetry(telemetry, elapsed_time, altitude, speed, thrust, mass):
 
 # Исходные параметры
 telemetry = []
-target_altitude = 80000  # целевая высота орбиты (в м)
-turn_start_altitude = 250  # высота начала поворота (в м)
-turn_end_altitude = 45000  # высота окончания поворота (в м)
+target_altitude = 90000  # целевая высота орбиты (в м) 80000
+turn_start_altitude = 10000  # высота начала поворота (в м) 250 
+turn_end_altitude = 60000  # высота окончания поворота (в м) 45000
 
 # Предварительная настройка автопилота
 vessel.auto_pilot.engage()
 vessel.auto_pilot.target_pitch_and_heading(90, 90)
+vessel.auto_pilot.reference_frame = vessel.surface_reference_frame
 vessel.auto_pilot.stopping_time = (0.5, 0.5, 0.5)  # Ускорение стабилизации
-vessel.auto_pilot.max_rotation_rate = (1, 1, 1)  # Ограничение скоростей вращения
+vessel.auto_pilot.max_rotation_rate = (0.1, 0.1, 0.1)  # Ограничение скоростей вращения
 vessel.control.rcs = True  # Включение реактивной системы стабилизации
+vessel.control.sas = True  # Включение стабилизации SAS
 vessel.control.throttle = 1.0
 
 # Старт
@@ -108,4 +110,6 @@ while True:
 # Завершение
 vessel.auto_pilot.disengage()  # Отключение автопилота
 vessel.control.sas = True  # Включение SAS для стабилизации после выхода на орбиту
+vessel.auto_pilot.stopping_time = (1, 1, 1)
 print("Программа завершена.")
+
