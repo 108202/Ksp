@@ -113,3 +113,27 @@ vessel.control.sas = True  # Включаем стабилизацию SAS по�
 vessel.auto_pilot.stopping_time = 1.0  # Устанавливаем время стабилизации автопилота
 print("Программа завершена.")  # Сообщение о завершении программы
 
+
+
+C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\Scripts\python.exe C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\1.py 
+Traceback (most recent call last):
+  File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\lib\site-packages\krpc\client.py", line 226, in _build_call
+    value = self._types.coerce_to(value, typ)
+  File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\lib\site-packages\krpc\types.py", line 271, in coerce_to
+    raise ValueError('Failed to coerce value ' + str(value) +
+ValueError: Failed to coerce value 0.5 of type <class 'float'> to type <type: Tuple(double,double,double)>
+
+# The above exception was the direct cause of the following exception:
+
+# Traceback (most recent call last):
+#   File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\1.py", line 56, in <module>
+#     vessel.auto_pilot.stopping_time = 0.5  # Время стабилизации для всех осей
+#   File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\lib\site-packages\krpc\services\spacecenter.py", line 2224, in stopping_time
+#     return self._client._invoke(
+#   File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\lib\site-packages\krpc\client.py", line 178, in _invoke
+#     call = self._build_call(service, procedure, args,
+#   File "C:\Users\Дмитрий\PycharmProjects\pythonProject1\venv\lib\site-packages\krpc\client.py", line 228, in _build_call
+#     raise TypeError(
+# TypeError: SpaceCenter.AutoPilot_set_StoppingTime() argument 1 must be a <class 'tuple'>, got a <class 'float'>
+
+
