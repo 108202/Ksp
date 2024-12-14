@@ -143,9 +143,9 @@ def plot_telemetry():
     plt.tight_layout()
     plt.show()
 
-# Выполнение этапов
-stage_1()
-stage_2()
-satellite_operation()
-plot_telemetry()
-
+# Главная функция, которая автоматически запускает все этапы
+if __name__ == "__main__":
+    stage_1()  # Запуск первой ступени
+    stage_2()  # Запуск второй ступени
+    satellite_operation()  # Операции с спутником
+    plot_telemetry()  # Построение графиков
