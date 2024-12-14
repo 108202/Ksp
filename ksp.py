@@ -1,54 +1,76 @@
-#  если не установлено то -Ю pip install krpc
-# 
-
-
-
 import krpc
 import time
+import math
 
-
-conn = krpc.connect(name='Sputnik 1 Launch', address='127.0.0.1', port=50000, password='ksp')
+# Подключение к серверу KSP
+conn = krpc.connect(name='KSP Autopilot')
 vessel = conn.space_center.active_vessel
 
+# Ускорение свободного падения и другие параметры
+G = 6.67430e-11  # гравитационная постоянная
+M_kerbin = 5.2915158e22  # масса Кербина (в кг)
+R_kerbin = 600000  # радиус Кербина (в м)
 
-target_apoapsis = 900000  # в метрах
-target_periapsis = 215000  # ---"---
+def calculate_orbital_speed(altitude):
+    """Рассчитывает орбитальную скорость на заданной высоте."""
+    r = R_kerbin + altitude
+    return math.sqrt(G * M_kerbin / r)
 
-vessel.control.throttle = 1.0
-print("Запуск ракеты...")
-vessel.control.activate_next_stage()
+def set_pitch(vessel, pitch):
+    """Устанавливает тангаж."""
+    ap = vessel.auto_pilot
+    ap.target_pitch_and_heading(pitch, 90)
+    ap.engage()
 
-while vessel.flight().mean_altitude < 1000:
-    time.sleep(0.1)
-
-#Начало гравитационного поворота
-turn_angle = 0
-
-while vessel.flight().mean_altitude < target_apoapsis * 0.5:
-    turn_angle = min(45, vessel.flight().mean_altitude / (target_apoapsis * 0.5) * 45)
-    vessel.auto_pilot.target_pitch_and_heading(90 - turn_angle, 90)
-    time.sleep(1)
-
-if len(vessel.parts.stages) > 1:
-    # Отделение первой ступени
+def stage():
+    """Активирует следующую ступень ракеты."""
     vessel.control.activate_next_stage()
 
-while vessel.orbit.apoapsis_altitude < target_apoapsis:
-    time.sleep(1)
+# Исходные параметры
+target_altitude = 80000  # целевая высота орбиты (в м)
+turn_start_altitude = 250  # высота начала поворота (в м)
+turn_end_altitude = 45000  # высота окончания поворота (в м)
 
-vessel.control.throttle = 0
-#Целевая высота апоцентра достигнута. Ожидание апоцентра для круговой орбиты
-
-while vessel.orbit.time_to_apoapsis > 30:
-    time.sleep(1)
-
-#Маневр для повышения перицентра
+# Предварительная настройка автопилота
+vessel.auto_pilot.engage()
+vessel.auto_pilot.target_pitch_and_heading(90, 90)
 vessel.control.throttle = 1.0
 
-while vessel.orbit.periapsis_altitude < target_periapsis:
-    time.sleep(1)
+# Старт
+print("Запуск...")
+vessel.control.activate_next_stage()
 
-vessel.control.throttle = 0
-print("Спутник выведен на орбиту с перицентром:", vessel.orbit.periapsis_altitude / 1000, "км и апоцентром:", vessel.orbit.apoapsis_altitude / 1000, "км.")
+# Основной цикл
+while True:
+    altitude = vessel.flight().mean_altitude
+    velocity = vessel.flight().velocity
+    thrust = vessel.available_thrust
+    mass = vessel.mass
 
-print("Конец")
+    # Телеметрия
+    print(f"Высота: {altitude:.1f} м, Скорость: {vessel.flight().speed:.1f} м/с")
+
+    # Поворот к горизонту
+    if altitude > turn_start_altitude and altitude < turn_end_altitude:
+        frac = (altitude - turn_start_altitude) / (turn_end_altitude - turn_start_altitude)
+        target_pitch = 90 - frac * 90
+        set_pitch(vessel, target_pitch)
+
+    # Выход на орбиту
+    if altitude >= target_altitude:
+        orbital_speed = calculate_orbital_speed(target_altitude)
+        current_speed = vessel.flight(vessel.orbit.body.reference_frame).speed
+        if current_speed >= orbital_speed:
+            print("Орбита достигнута!")
+            vessel.control.throttle = 0.0
+            break
+
+    # Сброс ступеней
+    if vessel.resources.amount('SolidFuel') == 0:
+        stage()
+
+    time.sleep(0.1)
+
+# Завершение
+print("Программа завершена.")
+
