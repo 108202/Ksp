@@ -46,8 +46,8 @@ def log_telemetry(telemetry, elapsed_time, altitude, speed, thrust, mass):
 # Исходные параметры
 telemetry = []
 target_altitude = 90000  # целевая высота орбиты (в м) 80000
-turn_start_altitude = 10000  # высота начала поворота (в м) 250 
-turn_end_altitude = 60000  # высота окончания поворота (в м) 45000
+turn_start_altitude = 45000  # высота начала поворота (в м) 250 
+turn_end_altitude = 90000  # высота окончания поворота (в м) 45000
 
 # Предварительная настройка автопилота
 vessel.auto_pilot.engage()
