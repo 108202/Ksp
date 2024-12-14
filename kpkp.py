@@ -1,118 +1,110 @@
 import krpc
-import math
 import time
+import math
 
-# Подключение к KSP
+# Подключение к серверу KSP
 conn = krpc.connect(name='KSP Autopilot')
 vessel = conn.space_center.active_vessel
 
-# Параметры ракеты
-m0 = 267000  # начальная масса (кг)
-m_payload = 5400  # масса полезной нагрузки (кг)
-m_fuel = 250000  # масса топлива (кг)
-thrust_stage_1 = 3253600  # тяга первой ступени (Н)
-thrust_stage_2 = 744800  # тяга второй ступени (Н)
-g = 9.81  # ускорение свободного падения (м/с^2)
-v_exhaust = 2580  # скорость истечения газов (м/с)
-h_char = 5000  # характеристическая высота для Кербина (м)
-p0 = 1.0  # давление на уровне моря (атм)
+# Ускорение свободного падения и другие параметры
+G = 6.67430e-11  # гравитационная постоянная
+M_kerbin = 5.2915158e22  # масса Кербина (в кг)
+R_kerbin = 600000  # радиус Кербина (в м)
 
-def get_pressure(height):
-    return p0 * math.exp(-height / h_char)
+# Параметры ступеней ракеты
+stages = [
+    {"thrust": 2150000, "burn_time": 60},  # Первая ступень
+    {"thrust": 1000000, "burn_time": 50},  # Вторая ступень
+    {"thrust": 500000, "burn_time": 40}   # Третья ступень
+]
 
-def get_thrust(height, stage):
-    pressure = get_pressure(height)
-    if stage == 1:
-        return thrust_stage_1 + (pressure - p0) * 1000  # корректировка
-    elif stage == 2:
-        return thrust_stage_2 + (pressure - p0) * 500  # корректировка
+def calculate_orbital_speed(altitude):
+    """Рассчитывает орбитальную скорость на заданной высоте."""
+    r = R_kerbin + altitude
+    return math.sqrt(G * M_kerbin / r)
 
-def angle_control(time, burn_time):
-    alpha_0 = math.pi / 2
-    beta = math.pi / (2 * burn_time**2)
-    return alpha_0 - beta * time**2
+def set_pitch(vessel, pitch):
+    """Устанавливает тангаж."""
+    ap = vessel.auto_pilot
+    ap.target_pitch_and_heading(pitch, 90)
+    ap.engage()
 
-# Подготовка к запуску
-vessel.control.sas = False
-vessel.control.rcs = False
+def stage():
+    """Активирует следующую ступень ракеты."""
+    vessel.control.activate_next_stage()
+
+def log_telemetry(telemetry, elapsed_time, altitude, speed, thrust, mass):
+    """Записывает телеметрию."""
+    telemetry.append({
+        "time": elapsed_time,
+        "altitude": altitude,
+        "speed": speed,
+        "thrust": thrust,
+        "mass": mass
+    })
+
+# Исходные параметры
+telemetry = []
+target_altitude = 80000  # целевая высота орбиты (в м)
+turn_start_altitude = 250  # высота начала поворота (в м)
+turn_end_altitude = 45000  # высота окончания поворота (в м)
+
+# Предварительная настройка автопилота
+vessel.auto_pilot.engage()
+vessel.auto_pilot.target_pitch_and_heading(90, 90)
 vessel.control.throttle = 1.0
 
-print("Запуск")
+# Старт
+print("Запуск...")
 vessel.control.activate_next_stage()
+start_time = time.time()
 
-time.sleep(1)
-start_time = conn.space_center.ut
-burn_time_stage_1 = 60
-burn_time_stage_2 = 90
-
-telemetry = {'time': [], 'altitude': [], 'velocity': [], 'mass': [], 'thrust': [], 'angle': []}
+# Основной цикл
+current_stage = 0
+stage_burn_start = time.time()
 
 while True:
-    ut = conn.space_center.ut
-    elapsed_time = ut - start_time
-
+    elapsed_time = time.time() - start_time
     altitude = vessel.flight().mean_altitude
-    velocity = vessel.flight(vessel.orbit.body.reference_frame).speed
+    velocity = vessel.flight().speed
+    thrust = vessel.available_thrust
     mass = vessel.mass
 
-    # Управление углом
-    if elapsed_time <= burn_time_stage_1:
-        angle = angle_control(elapsed_time, burn_time_stage_1)
-    else:
-        angle = angle_control(elapsed_time - burn_time_stage_1, burn_time_stage_2)
+    # Телеметрия
+    log_telemetry(telemetry, elapsed_time, altitude, velocity, thrust, mass)
+    print(f"Время: {elapsed_time:.1f} с, Высота: {altitude:.1f} м, Скорость: {velocity:.1f} м/с")
 
-    vessel.auto_pilot.target_pitch_and_heading(math.degrees(angle), 90)
-    vessel.auto_pilot.engage()
+    # Поворот к горизонту
+    if altitude > turn_start_altitude and altitude < turn_end_altitude:
+        frac = (altitude - turn_start_altitude) / (turn_end_altitude - turn_start_altitude)
+        target_pitch = 90 - frac * 90
+        set_pitch(vessel, target_pitch)
 
-    # Вычисление текущей тяги
-    stage = 1 if elapsed_time <= burn_time_stage_1 else 2
-    thrust = get_thrust(altitude, stage)
+    # Смена ступеней
+    if elapsed_time - stage_burn_start > stages[current_stage]["burn_time"]:
+        current_stage += 1
+        if current_stage < len(stages):
+            stage()
+            stage_burn_start = time.time()
+        else:
+            print("Все ступени использованы.")
+            vessel.control.throttle = 0.0
+            break
 
-    # Сохранение данных телеметрии
-    telemetry['time'].append(elapsed_time)
-    telemetry['altitude'].append(altitude)
-    telemetry['velocity'].append(velocity)
-    telemetry['mass'].append(mass)
-    telemetry['thrust'].append(thrust)
-    telemetry['angle'].append(math.degrees(angle))
-
-    # Переход между ступенями
-    if stage == 1 and elapsed_time > burn_time_stage_1:
-        vessel.control.activate_next_stage()
-        time.sleep(1)
-    elif stage == 2 and elapsed_time > burn_time_stage_1 + burn_time_stage_2:
-        print("Выход на орбиту завершен")
-        break
+    # Выход на орбиту
+    if altitude >= target_altitude:
+        orbital_speed = calculate_orbital_speed(target_altitude)
+        current_speed = vessel.flight(vessel.orbit.body.reference_frame).speed
+        if current_speed >= orbital_speed:
+            print("Орбита достигнута!")
+            vessel.control.throttle = 0.0
+            break
 
     time.sleep(0.1)
 
-# Построение графиков
-import matplotlib.pyplot as plt
+# Завершение
+print("Программа завершена.")
 
-plt.figure(figsize=(10, 6))
-plt.subplot(2, 2, 1)
-plt.plot(telemetry['time'], telemetry['altitude'])
-plt.title('Altitude vs Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Altitude (m)')
-
-plt.subplot(2, 2, 2)
-plt.plot(telemetry['time'], telemetry['velocity'])
-plt.title('Velocity vs Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Velocity (m/s)')
-
-plt.subplot(2, 2, 3)
-plt.plot(telemetry['time'], telemetry['thrust'])
-plt.title('Thrust vs Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Thrust (N)')
-
-plt.subplot(2, 2, 4)
-plt.plot(telemetry['time'], telemetry['angle'])
-plt.title('Angle vs Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Angle (degrees)')
 
 plt.tight_layout()
 plt.show()
