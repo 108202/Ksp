@@ -70,8 +70,8 @@ stage_burn_start = time.time()  # Время начала сгорания те�
 
 while True:
     elapsed_time = time.time() - start_time  # Время полета (с момента старта)
-    altitude = vessel.flight().mean_altitude  # Высота корабля
-    velocity = vessel.flight().speed  # Скорость корабля
+    altitude = vessel.flight(vessel.orbit.body.reference_frame).mean_altitude  # Высота корабля
+    velocity = vessel.flight(vessel.orbit.body.reference_frame).speed  # Скорость корабля
     thrust = vessel.available_thrust  # Доступная тяга
     mass = vessel.mass  # Масса корабля
 
