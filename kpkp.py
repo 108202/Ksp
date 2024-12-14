@@ -52,6 +52,8 @@ turn_end_altitude = 45000  # высота окончания поворота (�
 # Предварительная настройка автопилота
 vessel.auto_pilot.engage()
 vessel.auto_pilot.target_pitch_and_heading(90, 90)
+vessel.control.sas = True  # Включение системы стабилизации
+vessel.control.rcs = True  # Включение реактивной системы стабилизации
 vessel.control.throttle = 1.0
 
 # Старт
@@ -103,8 +105,6 @@ while True:
     time.sleep(0.1)
 
 # Завершение
+vessel.auto_pilot.disengage()  # Отключение автопилота
+vessel.control.sas = True  # Включение SAS для стабилизации
 print("Программа завершена.")
-
-
-plt.tight_layout()
-plt.show()
