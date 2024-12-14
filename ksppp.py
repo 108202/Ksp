@@ -30,9 +30,14 @@ def save_telemetry():
     telemetry["periapsis"].append(vessel.orbit.periapsis_altitude)
 
 def pitch_angle(current_altitude, target_altitude):
-    # Угол плавного изменения тангажа
-    angle = 90 - (current_altitude / target_altitude) * 90
-    return max(0, min(angle, 90))
+    """
+    Функция для вычисления угла наклона ракеты с квадратичной зависимостью от высоты.
+    Чем выше ракета, тем более горизонтальный угол.
+    """
+    # Квадратичное изменение угла
+    ratio = current_altitude / target_altitude
+    angle = 90 - (ratio ** 2) * 90  # Квадратичное изменение угла от 90° до 0°
+    return max(0, min(angle, 90))  # Ограничиваем угол от 0 до 90°
 
 def activate_next_stage_if_needed():
     """
@@ -143,3 +148,4 @@ stage_1()
 stage_2()
 satellite_operation()
 plot_telemetry()
+
